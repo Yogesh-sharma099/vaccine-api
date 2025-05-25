@@ -1,0 +1,73 @@
+// filepath: /home/yogeshsharma/vaccine-api/src/tests/index.ts
+import request from 'supertest';
+import app from '../app'; // Assuming app.ts exports the Express app
+import mongoose from 'mongoose';
+
+beforeAll(async () => {
+  await mongoose.connect(process.env.MONGO_URI!);
+});
+
+afterAll(async () => {
+  await mongoose.connection.close();
+});
+
+describe('Auth Endpoints', () => {
+  it('should register a user', async () => {
+    const response = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Test User',
+        phoneNumber: '9000000000',
+        password: 'password123',
+        age: 25,
+        pincode: '560001',
+        aadharNumber: '123456789012'
+      });
+    expect(response.status).toBe(201);
+    expect(response.body).toHaveProperty('userId');
+  });
+
+  it('should login a user', async () => {
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({
+        phoneNumber: '9000000000',
+        password: 'password123'
+      });
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('token');
+  });
+});
+
+describe('Admin Endpoints', () => {
+  let adminToken: string;
+
+  beforeAll(async () => {
+    const response = await request(app)
+      .post('/api/auth/admin/login')
+      .send({
+        username: 'admin',
+        password: 'adminpassword'
+      });
+    adminToken = response.body.token;
+  });
+
+  it('should filter users', async () => {
+    const response = await request(app)
+      .get('/api/admin/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .query({ age: 25 });
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('total');
+  });
+});
+
+describe('Slot Endpoints', () => {
+  it('should get available slots', async () => {
+    const response = await request(app)
+      .get('/api/slots?date=2023-10-01')
+      .set('Authorization', `Bearer someUserToken`); // Replace with a valid user token
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body)).toBe(true);
+  });
+});
